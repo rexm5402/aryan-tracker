@@ -25,6 +25,10 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
+    // Journey starts March 24, 2026
+    const START_DATE = new Date('2026-03-24');
+    START_DATE.setHours(0, 0, 0, 0);
+
     const DAILY_HABITS = [
       { id: 'wake', name: 'Wake up at 5 AM', icon: '🌅', color: '#FF6B35' },
       { id: 'pray', name: 'Pray to God', icon: '🙏', color: '#7B68EE' },
@@ -57,6 +61,21 @@
       const dateKey = currentDate.toISOString().split('T')[0];
       const dayOfWeek = currentDate.getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      
+      // Calculate day number since start
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const currentDateClean = new Date(currentDate);
+      currentDateClean.setHours(0, 0, 0, 0);
+      
+      const dayNumber = Math.max(1, Math.floor((currentDateClean - START_DATE) / (1000 * 60 * 60 * 24)) + 1);
+      
+      // Check if viewing today or yesterday (view-only)
+      const isToday = currentDateClean.getTime() === today.getTime();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const isYesterday = currentDateClean.getTime() === yesterday.getTime();
+      const isViewOnly = isYesterday;
 
       const allHabits = isWeekend ? [...DAILY_HABITS, ...WEEKEND_HABITS] : DAILY_HABITS;
 
@@ -80,6 +99,9 @@
       }, [habits, streaks, spending, loaded]);
 
       const toggleHabit = (habitId) => {
+        // Don't allow changes when viewing yesterday
+        if (isViewOnly) return;
+        
         const habitKey = `${dateKey}-${habitId}`;
         const newHabits = { ...habits };
         const newStreaks = { ...streaks };
@@ -89,9 +111,9 @@
           newStreaks[habitId] = Math.max(0, (newStreaks[habitId] || 1) - 1);
         } else {
           newHabits[habitKey] = true;
-          const yesterday = new Date(currentDate);
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayKey = `${yesterday.toISOString().split('T')[0]}-${habitId}`;
+          const yesterdayDate = new Date(currentDate);
+          yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+          const yesterdayKey = `${yesterdayDate.toISOString().split('T')[0]}-${habitId}`;
           
           if (habits[yesterdayKey] || !newStreaks[habitId]) {
             newStreaks[habitId] = (newStreaks[habitId] || 0) + 1;
@@ -105,6 +127,8 @@
       };
 
       const addSpending = () => {
+        // Don't allow changes when viewing yesterday
+        if (isViewOnly) return;
         if (!spendingInput || isNaN(parseFloat(spendingInput))) return;
         
         const newSpending = { ...spending };
@@ -153,13 +177,18 @@
         });
       };
 
-      const navigateDate = (days) => {
-        const newDate = new Date(currentDate);
-        newDate.setDate(newDate.getDate() + days);
+      const monthlyData = getMonthlySpending();
+      
+      // Navigate only between today and yesterday
+      const goToYesterday = () => {
+        const newDate = new Date(today);
+        newDate.setDate(newDate.getDate() - 1);
         setCurrentDate(newDate);
       };
-
-      const monthlyData = getMonthlySpending();
+      
+      const goToToday = () => {
+        setCurrentDate(new Date());
+      };
 
       const styles = {
         container: {
@@ -234,17 +263,6 @@
           position: 'relative',
           zIndex: 1,
         },
-        navBtn: {
-          background: 'rgba(255,255,255,0.1)',
-          border: '1px solid rgba(255,255,255,0.2)',
-          color: '#fff',
-          width: '45px',
-          height: '45px',
-          borderRadius: '12px',
-          fontSize: '1.2rem',
-          cursor: 'pointer',
-          transition: 'all 0.3s ease',
-        },
         dateDisplay: {
           display: 'flex',
           flexDirection: 'column',
@@ -252,8 +270,16 @@
           gap: '5px',
         },
         dateText: {
-          fontSize: '1.2rem',
+          fontSize: '1.1rem',
           fontWeight: 600,
+        },
+        dayCounter: {
+          fontSize: '2rem',
+          fontWeight: 800,
+          background: 'linear-gradient(135deg, #FF6B35, #00F5D4)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          marginBottom: '5px',
         },
         weekendBadge: {
           background: 'linear-gradient(135deg, #9B5DE5, #F15BB5)',
@@ -261,6 +287,25 @@
           borderRadius: '20px',
           fontSize: '0.75rem',
           fontWeight: 700,
+        },
+        viewOnlyBadge: {
+          background: 'linear-gradient(135deg, #E63946, #ff6b6b)',
+          padding: '4px 12px',
+          borderRadius: '20px',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          marginTop: '5px',
+        },
+        navBtn: {
+          background: 'rgba(255,255,255,0.1)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          color: '#fff',
+          padding: '12px 20px',
+          borderRadius: '12px',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
         },
         habitsGrid: {
           display: 'grid',
@@ -524,12 +569,18 @@
           </header>
 
           <div style={styles.dateNav}>
-            <button onClick={() => navigateDate(-1)} style={styles.navBtn}>◀</button>
+            {isToday && (
+              <button onClick={goToYesterday} style={styles.navBtn}>◀ Yesterday</button>
+            )}
             <div style={styles.dateDisplay}>
+              <span style={styles.dayCounter}>DAY {dayNumber}</span>
               <span style={styles.dateText}>{formatDate(currentDate)}</span>
               {isWeekend && <span style={styles.weekendBadge}>🎉 WEEKEND</span>}
+              {isViewOnly && <span style={styles.viewOnlyBadge}>👁 VIEW ONLY</span>}
             </div>
-            <button onClick={() => navigateDate(1)} style={styles.navBtn}>▶</button>
+            {isYesterday && (
+              <button onClick={goToToday} style={styles.navBtn}>Today ▶</button>
+            )}
           </div>
 
           <div style={styles.habitsGrid}>
@@ -548,6 +599,8 @@
                       : 'rgba(255,255,255,0.05)',
                     borderColor: isDone ? habit.color : 'rgba(255,255,255,0.1)',
                     transform: isDone ? 'scale(0.98)' : 'scale(1)',
+                    cursor: isViewOnly ? 'not-allowed' : 'pointer',
+                    opacity: isViewOnly ? 0.7 : 1,
                   }}
                 >
                   <div style={styles.habitIcon}>{habit.icon}</div>
@@ -576,30 +629,32 @@
           <div style={styles.spendingSection}>
             <h2 style={styles.sectionTitle}>💰 Spending Tracker</h2>
             
-            <div style={styles.spendingInput}>
-              <div style={styles.inputGroup}>
-                <span style={styles.currencySymbol}>$</span>
+            {!isViewOnly && (
+              <div style={styles.spendingInput}>
+                <div style={styles.inputGroup}>
+                  <span style={styles.currencySymbol}>$</span>
+                  <input
+                    type="number"
+                    placeholder="Amount"
+                    value={spendingInput}
+                    onChange={(e) => setSpendingInput(e.target.value)}
+                    style={styles.input}
+                  />
+                </div>
                 <input
-                  type="number"
-                  placeholder="Amount"
-                  value={spendingInput}
-                  onChange={(e) => setSpendingInput(e.target.value)}
-                  style={styles.input}
+                  type="text"
+                  placeholder="What for?"
+                  value={spendingNote}
+                  onChange={(e) => setSpendingNote(e.target.value)}
+                  style={styles.noteInput}
                 />
+                <button onClick={addSpending} style={styles.addBtn}>ADD</button>
               </div>
-              <input
-                type="text"
-                placeholder="What for?"
-                value={spendingNote}
-                onChange={(e) => setSpendingNote(e.target.value)}
-                style={styles.noteInput}
-              />
-              <button onClick={addSpending} style={styles.addBtn}>ADD</button>
-            </div>
+            )}
 
             <div style={styles.spendingStats}>
               <div style={styles.statCard}>
-                <span style={styles.statLabel}>Today</span>
+                <span style={styles.statLabel}>{isViewOnly ? 'That Day' : 'Today'}</span>
                 <span style={styles.statValue}>${getTodaySpending().toFixed(2)}</span>
               </div>
               <div style={styles.statCard}>
