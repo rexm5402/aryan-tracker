@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="description" content="Aryan's Personal Discipline Tracker - Stay focused, crush your goals">
+  <title>Aryan's Discipline Tracker ⚡</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; }
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const DAILY_HABITS = [
+      { id: 'wake', name: 'Wake up at 5 AM', icon: '🌅', color: '#FF6B35' },
+      { id: 'pray', name: 'Pray to God', icon: '🙏', color: '#7B68EE' },
+      { id: 'nofap', name: 'No Fap / Stay Disciplined', icon: '💪', color: '#E63946' },
+      { id: 'fresh', name: 'Fresh Up', icon: '🚿', color: '#00B4D8' },
+      { id: 'gym', name: 'Gym Workout', icon: '🏋️', color: '#2EC4B6' },
+      { id: 'class', name: 'Attend Class', icon: '📚', color: '#F4A261' },
+      { id: 'work', name: 'Work', icon: '💼', color: '#457B9D' },
+      { id: 'jobs', name: 'Job Applications', icon: '📝', color: '#E76F51' },
+      { id: 'content', name: 'Creative Content', icon: '🎨', color: '#9B5DE5' },
+      { id: 'ml', name: 'Advanced ML Coursework', icon: '🤖', color: '#00F5D4' },
+      { id: 'eatclean', name: 'Eat Clean (No Junk)', icon: '🥗', color: '#80ED99' },
+    ];
+
+    const WEEKEND_HABITS = [
+      { id: 'laundry', name: 'Laundry', icon: '🧺', color: '#FF9F1C' },
+      { id: 'towel', name: 'Wash Bath Towel', icon: '🛁', color: '#2EC4B6' },
+    ];
+
+    const App = () => {
+      const [currentDate, setCurrentDate] = useState(new Date());
+      const [habits, setHabits] = useState({});
+      const [streaks, setStreaks] = useState({});
+      const [spending, setSpending] = useState({});
+      const [spendingInput, setSpendingInput] = useState('');
+      const [spendingNote, setSpendingNote] = useState('');
+      const [showMonthlyReport, setShowMonthlyReport] = useState(false);
+      const [loaded, setLoaded] = useState(false);
+
+      const dateKey = currentDate.toISOString().split('T')[0];
+      const dayOfWeek = currentDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      const allHabits = isWeekend ? [...DAILY_HABITS, ...WEEKEND_HABITS] : DAILY_HABITS;
+
+      useEffect(() => {
+        const savedHabits = localStorage.getItem('disciplineHabits');
+        const savedStreaks = localStorage.getItem('disciplineStreaks');
+        const savedSpending = localStorage.getItem('disciplineSpending');
+        
+        if (savedHabits) setHabits(JSON.parse(savedHabits));
+        if (savedStreaks) setStreaks(JSON.parse(savedStreaks));
+        if (savedSpending) setSpending(JSON.parse(savedSpending));
+        setLoaded(true);
+      }, []);
+
+      useEffect(() => {
+        if (loaded) {
+          localStorage.setItem('disciplineHabits', JSON.stringify(habits));
+          localStorage.setItem('disciplineStreaks', JSON.stringify(streaks));
+          localStorage.setItem('disciplineSpending', JSON.stringify(spending));
+        }
+      }, [habits, streaks, spending, loaded]);
+
+      const toggleHabit = (habitId) => {
+        const habitKey = `${dateKey}-${habitId}`;
+        const newHabits = { ...habits };
+        const newStreaks = { ...streaks };
+        
+        if (newHabits[habitKey]) {
+          delete newHabits[habitKey];
+          newStreaks[habitId] = Math.max(0, (newStreaks[habitId] || 1) - 1);
+        } else {
+          newHabits[habitKey] = true;
+          const yesterday = new Date(currentDate);
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayKey = `${yesterday.toISOString().split('T')[0]}-${habitId}`;
+          
+          if (habits[yesterdayKey] || !newStreaks[habitId]) {
+            newStreaks[habitId] = (newStreaks[habitId] || 0) + 1;
+          } else {
+            newStreaks[habitId] = 1;
+          }
+        }
+        
+        setHabits(newHabits);
+        setStreaks(newStreaks);
+      };
+
+      const addSpending = () => {
+        if (!spendingInput || isNaN(parseFloat(spendingInput))) return;
+        
+        const newSpending = { ...spending };
+        if (!newSpending[dateKey]) {
+          newSpending[dateKey] = [];
+        }
+        newSpending[dateKey].push({
+          amount: parseFloat(spendingInput),
+          note: spendingNote || 'Misc',
+          time: new Date().toLocaleTimeString()
+        });
+        
+        setSpending(newSpending);
+        setSpendingInput('');
+        setSpendingNote('');
+      };
+
+      const getTodaySpending = () => {
+        return (spending[dateKey] || []).reduce((sum, item) => sum + item.amount, 0);
+      };
+
+      const getMonthlySpending = () => {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        let total = 0;
+        const breakdown = [];
+        
+        Object.keys(spending).forEach(date => {
+          const [y, m] = date.split('-').map(Number);
+          if (y === year && m - 1 === month) {
+            const dayTotal = spending[date].reduce((sum, item) => sum + item.amount, 0);
+            total += dayTotal;
+            breakdown.push({ date, items: spending[date], total: dayTotal });
+          }
+        });
+        
+        return { total, breakdown };
+      };
+
+      const formatDate = (date) => {
+        return date.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      };
+
+      const navigateDate = (days) => {
+        const newDate = new Date(currentDate);
+        newDate.setDate(newDate.getDate() + days);
+        setCurrentDate(newDate);
+      };
+
+      const monthlyData = getMonthlySpending();
+
+      const styles = {
+        container: {
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%)',
+          color: '#fff',
+          fontFamily: "'Outfit', 'Poppins', sans-serif",
+          position: 'relative',
+          overflow: 'hidden',
+          padding: '20px',
+        },
+        backgroundGradient: {
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'radial-gradient(ellipse at top right, rgba(155, 93, 229, 0.15) 0%, transparent 50%), radial-gradient(ellipse at bottom left, rgba(0, 245, 212, 0.1) 0%, transparent 50%)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        },
+        noiseOverlay: {
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          opacity: 0.03,
+          pointerEvents: 'none',
+          zIndex: 0,
+        },
+        header: {
+          textAlign: 'center',
+          marginBottom: '30px',
+          position: 'relative',
+          zIndex: 1,
+        },
+        logoSection: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '15px',
+          marginBottom: '10px',
+        },
+        logo: {
+          fontSize: '48px',
+          filter: 'drop-shadow(0 0 20px rgba(255, 107, 53, 0.8))',
+        },
+        title: {
+          fontSize: 'clamp(1.8rem, 5vw, 2.8rem)',
+          fontWeight: 800,
+          background: 'linear-gradient(135deg, #FF6B35 0%, #F7C59F 50%, #00F5D4 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          letterSpacing: '3px',
+          margin: 0,
+          textShadow: '0 0 60px rgba(255, 107, 53, 0.3)',
+        },
+        motto: {
+          color: 'rgba(255,255,255,0.6)',
+          fontSize: '0.95rem',
+          fontStyle: 'italic',
+          marginTop: '8px',
+        },
+        dateNav: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '20px',
+          marginBottom: '30px',
+          position: 'relative',
+          zIndex: 1,
+        },
+        navBtn: {
+          background: 'rgba(255,255,255,0.1)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          color: '#fff',
+          width: '45px',
+          height: '45px',
+          borderRadius: '12px',
+          fontSize: '1.2rem',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+        },
+        dateDisplay: {
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '5px',
+        },
+        dateText: {
+          fontSize: '1.2rem',
+          fontWeight: 600,
+        },
+        weekendBadge: {
+          background: 'linear-gradient(135deg, #9B5DE5, #F15BB5)',
+          padding: '4px 12px',
+          borderRadius: '20px',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+        },
+        habitsGrid: {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: '15px',
+          marginBottom: '40px',
+          position: 'relative',
+          zIndex: 1,
+        },
+        habitCard: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '15px',
+          padding: '18px 20px',
+          borderRadius: '16px',
+          border: '1px solid',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+          backdropFilter: 'blur(10px)',
+        },
+        habitIcon: {
+          fontSize: '2rem',
+          filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))',
+        },
+        habitInfo: {
+          flex: 1,
+        },
+        habitName: {
+          display: 'block',
+          fontSize: '1rem',
+          fontWeight: 600,
+          marginBottom: '4px',
+          transition: 'all 0.3s ease',
+        },
+        streakBadge: {
+          fontSize: '0.8rem',
+          color: 'rgba(255,255,255,0.7)',
+          background: 'rgba(255,107,53,0.2)',
+          padding: '2px 8px',
+          borderRadius: '10px',
+          display: 'inline-block',
+        },
+        checkMark: {
+          fontSize: '1.5rem',
+          transition: 'all 0.3s ease',
+        },
+        spendingSection: {
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: '24px',
+          padding: '30px',
+          marginBottom: '40px',
+          border: '1px solid rgba(255,255,255,0.08)',
+          position: 'relative',
+          zIndex: 1,
+        },
+        sectionTitle: {
+          fontSize: '1.5rem',
+          fontWeight: 700,
+          marginBottom: '25px',
+          textAlign: 'center',
+        },
+        spendingInput: {
+          display: 'flex',
+          gap: '10px',
+          marginBottom: '25px',
+          flexWrap: 'wrap',
+        },
+        inputGroup: {
+          display: 'flex',
+          alignItems: 'center',
+          background: 'rgba(255,255,255,0.08)',
+          borderRadius: '12px',
+          padding: '0 15px',
+          flex: '1',
+          minWidth: '120px',
+        },
+        currencySymbol: {
+          color: '#00F5D4',
+          fontWeight: 700,
+          fontSize: '1.2rem',
+        },
+        input: {
+          background: 'transparent',
+          border: 'none',
+          color: '#fff',
+          fontSize: '1rem',
+          padding: '15px 10px',
+          outline: 'none',
+          width: '100%',
+        },
+        noteInput: {
+          background: 'rgba(255,255,255,0.08)',
+          border: 'none',
+          borderRadius: '12px',
+          color: '#fff',
+          fontSize: '1rem',
+          padding: '15px 20px',
+          outline: 'none',
+          flex: '2',
+          minWidth: '150px',
+        },
+        addBtn: {
+          background: 'linear-gradient(135deg, #00F5D4, #00B4D8)',
+          border: 'none',
+          borderRadius: '12px',
+          color: '#0a0a0f',
+          fontWeight: 700,
+          padding: '15px 30px',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+        },
+        spendingStats: {
+          display: 'flex',
+          gap: '15px',
+          marginBottom: '25px',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+        },
+        statCard: {
+          background: 'rgba(155, 93, 229, 0.15)',
+          borderRadius: '16px',
+          padding: '20px 35px',
+          textAlign: 'center',
+          border: '1px solid rgba(155, 93, 229, 0.3)',
+        },
+        statLabel: {
+          display: 'block',
+          fontSize: '0.85rem',
+          color: 'rgba(255,255,255,0.6)',
+          marginBottom: '5px',
+        },
+        statValue: {
+          display: 'block',
+          fontSize: '1.8rem',
+          fontWeight: 800,
+          color: '#00F5D4',
+        },
+        spendingList: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          marginBottom: '20px',
+        },
+        spendingItem: {
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '12px 18px',
+          background: 'rgba(255,255,255,0.05)',
+          borderRadius: '10px',
+        },
+        spendingNote: {
+          color: 'rgba(255,255,255,0.8)',
+        },
+        spendingAmount: {
+          fontWeight: 700,
+          color: '#FF6B35',
+        },
+        reportBtn: {
+          width: '100%',
+          background: 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: '12px',
+          color: '#fff',
+          padding: '15px',
+          fontSize: '1rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+        },
+        monthlyReport: {
+          marginTop: '25px',
+          padding: '25px',
+          background: 'rgba(0,0,0,0.3)',
+          borderRadius: '16px',
+          border: '1px solid rgba(255,255,255,0.1)',
+        },
+        reportTitle: {
+          textAlign: 'center',
+          marginBottom: '20px',
+          fontSize: '1.2rem',
+        },
+        reportTotal: {
+          textAlign: 'center',
+          fontSize: '1.5rem',
+          marginBottom: '20px',
+          color: '#00F5D4',
+        },
+        reportBreakdown: {
+          maxHeight: '300px',
+          overflowY: 'auto',
+        },
+        reportDay: {
+          display: 'flex',
+          justifyContent: 'space-between',
+          padding: '10px 15px',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
+        },
+        reportDate: {
+          color: 'rgba(255,255,255,0.6)',
+        },
+        reportDayTotal: {
+          fontWeight: 600,
+          color: '#F4A261',
+        },
+        streaksSection: {
+          marginBottom: '40px',
+          position: 'relative',
+          zIndex: 1,
+        },
+        streaksGrid: {
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '10px',
+          justifyContent: 'center',
+        },
+        streakCard: {
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '5px',
+          padding: '15px 20px',
+          background: 'rgba(255,107,53,0.1)',
+          borderRadius: '12px',
+          border: '1px solid rgba(255,107,53,0.3)',
+          minWidth: '70px',
+        },
+        streakIcon: {
+          fontSize: '1.5rem',
+        },
+        streakCount: {
+          fontSize: '1.2rem',
+          fontWeight: 800,
+          color: '#FF6B35',
+        },
+        footer: {
+          textAlign: 'center',
+          padding: '30px 20px',
+          color: 'rgba(255,255,255,0.5)',
+          position: 'relative',
+          zIndex: 1,
+        },
+        footerSub: {
+          fontSize: '0.8rem',
+          marginTop: '10px',
+          color: 'rgba(255,255,255,0.3)',
+        },
+      };
+
+      return (
+        <div style={styles.container}>
+          <div style={styles.backgroundGradient}></div>
+          <div style={styles.noiseOverlay}></div>
+          
+          <header style={styles.header}>
+            <div style={styles.logoSection}>
+              <span style={styles.logo}>⚡</span>
+              <h1 style={styles.title}>ARYAN'S TRACKER</h1>
+            </div>
+            <p style={styles.motto}>"Discipline is the bridge between goals and accomplishment"</p>
+          </header>
+
+          <div style={styles.dateNav}>
+            <button onClick={() => navigateDate(-1)} style={styles.navBtn}>◀</button>
+            <div style={styles.dateDisplay}>
+              <span style={styles.dateText}>{formatDate(currentDate)}</span>
+              {isWeekend && <span style={styles.weekendBadge}>🎉 WEEKEND</span>}
+            </div>
+            <button onClick={() => navigateDate(1)} style={styles.navBtn}>▶</button>
+          </div>
+
+          <div style={styles.habitsGrid}>
+            {allHabits.map((habit, index) => {
+              const isDone = habits[`${dateKey}-${habit.id}`];
+              const streak = streaks[habit.id] || 0;
+              
+              return (
+                <div 
+                  key={habit.id}
+                  onClick={() => toggleHabit(habit.id)}
+                  style={{
+                    ...styles.habitCard,
+                    background: isDone 
+                      ? `linear-gradient(135deg, ${habit.color}dd, ${habit.color}99)`
+                      : 'rgba(255,255,255,0.05)',
+                    borderColor: isDone ? habit.color : 'rgba(255,255,255,0.1)',
+                    transform: isDone ? 'scale(0.98)' : 'scale(1)',
+                  }}
+                >
+                  <div style={styles.habitIcon}>{habit.icon}</div>
+                  <div style={styles.habitInfo}>
+                    <span style={{
+                      ...styles.habitName,
+                      textDecoration: isDone ? 'line-through' : 'none',
+                      opacity: isDone ? 0.8 : 1
+                    }}>{habit.name}</span>
+                    <div style={styles.streakBadge}>
+                      🔥 {streak} day{streak !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                  <div style={{
+                    ...styles.checkMark,
+                    opacity: isDone ? 1 : 0.3,
+                    transform: isDone ? 'scale(1.2)' : 'scale(1)'
+                  }}>
+                    {isDone ? '✅' : '⭕'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={styles.spendingSection}>
+            <h2 style={styles.sectionTitle}>💰 Spending Tracker</h2>
+            
+            <div style={styles.spendingInput}>
+              <div style={styles.inputGroup}>
+                <span style={styles.currencySymbol}>$</span>
+                <input
+                  type="number"
+                  placeholder="Amount"
+                  value={spendingInput}
+                  onChange={(e) => setSpendingInput(e.target.value)}
+                  style={styles.input}
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="What for?"
+                value={spendingNote}
+                onChange={(e) => setSpendingNote(e.target.value)}
+                style={styles.noteInput}
+              />
+              <button onClick={addSpending} style={styles.addBtn}>ADD</button>
+            </div>
+
+            <div style={styles.spendingStats}>
+              <div style={styles.statCard}>
+                <span style={styles.statLabel}>Today</span>
+                <span style={styles.statValue}>${getTodaySpending().toFixed(2)}</span>
+              </div>
+              <div style={styles.statCard}>
+                <span style={styles.statLabel}>This Month</span>
+                <span style={styles.statValue}>${monthlyData.total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {(spending[dateKey] || []).length > 0 && (
+              <div style={styles.spendingList}>
+                {spending[dateKey].map((item, idx) => (
+                  <div key={idx} style={styles.spendingItem}>
+                    <span style={styles.spendingNote}>{item.note}</span>
+                    <span style={styles.spendingAmount}>${item.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button 
+              onClick={() => setShowMonthlyReport(!showMonthlyReport)}
+              style={styles.reportBtn}
+            >
+              {showMonthlyReport ? '📊 Hide Monthly Report' : '📊 View Monthly Report'}
+            </button>
+
+            {showMonthlyReport && (
+              <div style={styles.monthlyReport}>
+                <h3 style={styles.reportTitle}>
+                  📅 {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} Report
+                </h3>
+                <div style={styles.reportTotal}>
+                  Total Spent: <strong>${monthlyData.total.toFixed(2)}</strong>
+                </div>
+                <div style={styles.reportBreakdown}>
+                  {monthlyData.breakdown.map((day, idx) => (
+                    <div key={idx} style={styles.reportDay}>
+                      <span style={styles.reportDate}>{day.date}</span>
+                      <span style={styles.reportDayTotal}>${day.total.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={styles.streaksSection}>
+            <h2 style={styles.sectionTitle}>🔥 Current Streaks</h2>
+            <div style={styles.streaksGrid}>
+              {DAILY_HABITS.map(habit => (
+                <div key={habit.id} style={styles.streakCard}>
+                  <span style={styles.streakIcon}>{habit.icon}</span>
+                  <span style={styles.streakCount}>{streaks[habit.id] || 0}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <footer style={styles.footer}>
+            <p>🚀 Stay Disciplined. Stay Focused. Crush Your Goals.</p>
+            <p style={styles.footerSub}>Data saved locally on this device</p>
+          </footer>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
