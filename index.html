@@ -75,10 +75,7 @@
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
       const isYesterday = currentDateClean.getTime() === yesterday.getTime();
-      const isViewOnly = !isToday;
-      
-      // Only allow viewing yesterday if it's on or after START_DATE
-      const canViewYesterday = yesterday.getTime() >= START_DATE.getTime();
+      const isViewOnly = isYesterday;
 
       const allHabits = isWeekend ? [...DAILY_HABITS, ...WEEKEND_HABITS] : DAILY_HABITS;
 
@@ -557,56 +554,6 @@
           color: 'rgba(255,255,255,0.3)',
         },
       };
-      
-      // Show "Coming Soon" screen if before start date
-      const isBeforeStart = today.getTime() < START_DATE.getTime();
-      
-      if (isBeforeStart) {
-        return (
-          <div style={styles.container}>
-            <div style={styles.backgroundGradient}></div>
-            <div style={styles.noiseOverlay}></div>
-            
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '80vh',
-              textAlign: 'center',
-              padding: '20px',
-            }}>
-              <span style={{ fontSize: '80px', marginBottom: '30px' }}>⚡</span>
-              <h1 style={styles.title}>ARYAN'S TRACKER</h1>
-              <p style={{ 
-                fontSize: '1.5rem', 
-                color: '#00F5D4', 
-                marginTop: '30px',
-                fontWeight: 700 
-              }}>
-                YOUR JOURNEY BEGINS
-              </p>
-              <p style={{ 
-                fontSize: '2.5rem', 
-                fontWeight: 800,
-                background: 'linear-gradient(135deg, #FF6B35, #F7C59F)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                marginTop: '10px'
-              }}>
-                Tuesday, March 24, 2026
-              </p>
-              <p style={{ 
-                color: 'rgba(255,255,255,0.5)', 
-                marginTop: '40px',
-                fontSize: '1.1rem'
-              }}>
-                🔥 Get ready to crush your goals
-              </p>
-            </div>
-          </div>
-        );
-      }
 
       return (
         <div style={styles.container}>
@@ -622,7 +569,7 @@
           </header>
 
           <div style={styles.dateNav}>
-            {isToday && canViewYesterday && (
+            {isToday && (
               <button onClick={goToYesterday} style={styles.navBtn}>◀ Yesterday</button>
             )}
             <div style={styles.dateDisplay}>
@@ -631,7 +578,7 @@
               {isWeekend && <span style={styles.weekendBadge}>🎉 WEEKEND</span>}
               {isViewOnly && <span style={styles.viewOnlyBadge}>👁 VIEW ONLY</span>}
             </div>
-            {!isToday && (
+            {isYesterday && (
               <button onClick={goToToday} style={styles.navBtn}>Today ▶</button>
             )}
           </div>
